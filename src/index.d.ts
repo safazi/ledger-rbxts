@@ -1,10 +1,41 @@
-interface Future<T extends unknown[]> {
-	Wait(timeout?: number): LuaTuple<T>;
-	Happened(wait?: boolean): boolean;
+/** A handle returned by Observer.Subscribe. */
+interface Connection {
+	Connected: boolean;
+	Disconnect(this: Connection): void;
 }
 
+/** A lazy value stream you can subscribe to and transform. */
 interface Observer<T> {
-	Connect(callback: (value: T) => void): RBXScriptConnection;
+	Subscribe(this: Observer<T>, listener: (value: T) => void): Connection;
+
+	Use<U>(this: Observer<T>, middleware: (value: T, emit: (out: U) => void) => void): Observer<U>;
+	Map<U>(this: Observer<T>, transform: (value: T) => U): Observer<U>;
+	Filter(this: Observer<T>, predicate: (value: T) => boolean): Observer<T>;
+	Changed(this: Observer<T>, equals?: (a: T, b: T) => boolean): Observer<T>;
+
+	Destroy(this: Observer<T>): void;
+}
+
+/**
+ * An eager async result. Runs its callback on a new thread; grab the result
+ * with :Wait(). `T` is a tuple of the return values.
+ */
+interface Future<T extends unknown[]> {
+	/** Yields until the future resolves, then returns its values. */
+	Wait(this: Future<T>, timeout?: number): LuaTuple<T>;
+	/** Returns whether the future has already resolved. Pass `true` to wait for it. */
+	Happened(this: Future<T>, wait?: boolean): boolean;
+}
+
+/** The internal log record shape returned by Store.Inspect. */
+export interface LogRecord<S> {
+	Snapshot?: S;
+	Ops: Op[];
+	Seen: string[];
+	Version?: number;
+	Floor?: number;
+	Envelope?: number;
+	Erased?: number;
 }
 
 export type Reason =
@@ -44,34 +75,29 @@ export interface TxLeg {
 	UserId?: number;
 	Key?: string;
 	Kind: string;
-	Fields?: Record<string, unknown>;
+	Fields?: { [key: string]: unknown };
 }
 
 export interface Config<D> {
 	Name: string;
 	Reducer: (state: D, op: Op) => unknown;
 	Default: D;
+	/** Name of a numeric field in state used as the transferable balance, e.g. `"Gold"`. Required for Transfer/RecoverTransfers. */
 	Balance?: string;
 	Migrations?: Migration[];
 	Keys?: KeysMode;
+	/** Only valid when Keys is "Player". */
 	OnLoadFailed?: (player: Player, why: Reason) => boolean;
 }
 
+/** A live in-memory session for a loaded key. All methods are colon-style. */
 export interface Session<S> {
 	readonly LogSize: number;
 	readonly LogBytes: number;
 
 	Get(this: Session<S>): S;
-	Apply(
-		this: Session<S>,
-		kind: string,
-		fields?: Record<string, unknown>,
-	): LuaTuple<[boolean, Reason?]>;
-	Commit(
-		this: Session<S>,
-		kind: string,
-		fields?: Record<string, unknown>,
-	): Future<[boolean, Reason?]>;
+	Apply(this: Session<S>, kind: string, fields?: { [key: string]: unknown }): LuaTuple<[boolean, Reason?]>;
+	Commit(this: Session<S>, kind: string, fields?: { [key: string]: unknown }): Future<[boolean, Reason?]>;
 	CommitOp(this: Session<S>, op: Op): Future<[boolean, Reason?]>;
 	Flush(this: Session<S>): Future<[boolean, Reason?]>;
 	Compact(this: Session<S>): Future<[boolean, Reason?]>;
@@ -89,38 +115,12 @@ export interface Store<D> {
 	WaitForLoaded(this: Store<D>, player: Player): Session<D> | undefined;
 	Read(this: Store<D>, player: Player): D | undefined;
 	Peek(this: Store<D>, key: KeyLike): Future<[D | undefined, Reason?]>;
-	Inspect(
-		this: Store<D>,
-		key: KeyLike,
-	): Future<[object | undefined, Reason?]>;
-	DidApply(
-		this: Store<D>,
-		key: KeyLike,
-		id: string,
-	): Future<[boolean | undefined, Reason?]>;
-	History(
-		this: Store<D>,
-		key: KeyLike,
-		limit?: number,
-	): Future<[HistoryEntry[] | undefined, Reason?]>;
-	PeekVersion(
-		this: Store<D>,
-		key: KeyLike,
-		version: string,
-	): Future<[D | undefined, Reason?]>;
-	Edit(
-		this: Store<D>,
-		key: KeyLike,
-		kind: string,
-		fields?: Record<string, unknown>,
-	): Future<[boolean, Reason?]>;
-	Transfer(
-		this: Store<D>,
-		from: KeyLike,
-		to: KeyLike,
-		amount: number,
-		id?: string,
-	): Future<[boolean, Reason?]>;
+	Inspect(this: Store<D>, key: KeyLike): Future<[LogRecord<D> | undefined, Reason?]>;
+	DidApply(this: Store<D>, key: KeyLike, id: string): Future<[boolean | undefined, Reason?]>;
+	History(this: Store<D>, key: KeyLike, limit?: number): Future<[HistoryEntry[] | undefined, Reason?]>;
+	PeekVersion(this: Store<D>, key: KeyLike, version: string): Future<[D | undefined, Reason?]>;
+	Edit(this: Store<D>, key: KeyLike, kind: string, fields?: { [key: string]: unknown }): Future<[boolean, Reason?]>;
+	Transfer(this: Store<D>, from: KeyLike, to: KeyLike, amount: number, id?: string): Future<[boolean, Reason?]>;
 	Tx(this: Store<D>, id: string, legs: TxLeg[]): Future<[boolean, Reason?]>;
 	Resettle(this: Store<D>, key: KeyLike): Future<[boolean, Reason?]>;
 	RecoverTransfers(this: Store<D>, key: KeyLike): Future<[boolean, Reason?]>;
@@ -130,19 +130,16 @@ export interface Store<D> {
 	Destroy(this: Store<D>): void;
 }
 
-export interface MockService {
-	GetDataStore(this: MockService, name: string, scope?: string): object;
-	GetRequestBudgetForRequestType(
-		this: MockService,
-		kind: Enum["DataStoreRequestType"],
-	): number;
-	Clear(this: MockService): void;
-}
-
 export interface MockOptions {
 	Players?: number;
 	CCU?: number;
 	Throttled?: boolean;
+}
+
+export interface MockService {
+	GetDataStore(this: MockService, name: string, scope?: string): object;
+	GetRequestBudgetForRequestType(this: MockService, kind: Enum["DataStoreRequestType"]): number;
+	Clear(this: MockService): void;
 }
 
 export interface ReasonMap {
@@ -164,3 +161,4 @@ export declare function UseReal(): void;
 export declare function UseClock(reads?: () => number): void;
 export declare function Sweep(): void;
 export declare function CloseAll(): void;
+
