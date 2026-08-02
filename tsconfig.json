@@ -16,11 +16,12 @@
 		"strict": true,
 		"target": "ESNext",
 		"typeRoots": ["node_modules/@rbxts"],
+		"types": ["types"],
 		"sourceMap": false,
 
 		// configurable
 		"rootDir": "src",
-		"outDir": "out"
-	},
-	"exclude": ["scripts"]
+		"outDir": "out",
+		"ignoreDeprecations": "6.0"
+	}
 }
