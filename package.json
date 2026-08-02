@@ -1,5 +1,5 @@
 {
-  "name": "@rbxts/ledger",
+  "name": "@belkworks/ledger",
   "version": "3.1.2",
   "main": "src/init.lua",
   "author": "Xoifail",
