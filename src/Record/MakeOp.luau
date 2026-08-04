@@ -10,19 +10,21 @@ local Types = require("../Types")
 
 type Op = Types.Op
 
-local function Stamp(Op: Op)
+local function Stamp(Op: Op): (boolean, string?)
 	local Loose: { [any]: any } = Op :: any
 	if Loose.Once == nil then
-		return
+		return true, nil
 	end
 
-	assert(
-		type(Loose.Once) == "string" and #Loose.Once > 0,
-		`op '{tostring(Loose.Kind)}' Once must be a non-empty string when given, it is the name a retry repeats`
-	)
-	if type(Loose.OnceAt) ~= "number" then
-		Loose.OnceAt = Clock.Now()
+	if type(Loose.Once) ~= "string" or #Loose.Once == 0 then
+		return false, "Once has to be a string with something in it if you pass one"
 	end
+
+	local Now = Clock.Now()
+	if type(Loose.OnceAt) ~= "number" or not (Loose.OnceAt <= Now) then
+		Loose.OnceAt = Now
+	end
+	return true, nil
 end
 
 local function MakeOp(Kind: string, Fields: { [any]: any }?): Op
@@ -37,7 +39,6 @@ local function MakeOp(Kind: string, Fields: { [any]: any }?): Op
 	Op.Id = Ident.Fresh()
 	Op.Kind = Kind
 	Op.OnceAt = nil
-	Stamp(Op :: Op)
 
 	return Op :: Op
 end
