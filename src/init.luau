@@ -26,6 +26,7 @@ export type Reason = Types.Reason
 export type TxLeg = Types.TxLeg
 export type Migration = Types.Migration
 export type Config<D> = Types.Config<D>
+export type HistoryEntry = Types.HistoryEntry
 
 export type Export = {
 	read Reason: typeof(Reasons),
@@ -103,10 +104,12 @@ local function Settle()
 end
 
 local function CloseAll()
+	Registry.Shutting.Now = true
 	Registry.Sweep:Stop()
 	Hurry()
 	Release()
 	Settle()
+	Registry.Shutting.Now = false
 end
 
 return table.freeze({

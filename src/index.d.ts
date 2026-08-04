@@ -38,16 +38,7 @@ export interface LogRecord<S> {
 	Erased?: number;
 }
 
-export type Reason =
-	| "Refused"
-	| "Busy"
-	| "Spent"
-	| "Unresolved"
-	| "Closed"
-	| "Backlog"
-	| "Full"
-	| "Invalid"
-	| "Behind";
+export type Reason = "Refused" | "Busy" | "Spent" | "Unresolved" | "Closed" | "Backlog" | "Full" | "Invalid" | "Behind";
 
 export type KeyLike = number | string;
 export type KeysMode = "Player" | "String";
@@ -60,9 +51,7 @@ export interface Op {
 
 export type Reducer<S> = (state: S, op: Op) => S | undefined;
 
-export type Migration =
-	| ((state: unknown) => unknown)
-	| { Apply: (state: unknown) => unknown; Compatible?: boolean };
+export type Migration = ((state: unknown) => unknown) | { Apply: (state: unknown) => unknown; Compatible?: boolean };
 
 export interface HistoryEntry {
 	Version: string;
@@ -138,7 +127,7 @@ export interface MockOptions {
 
 export interface MockService {
 	GetDataStore(this: MockService, name: string, scope?: string): object;
-	GetRequestBudgetForRequestType(this: MockService, kind: Enum["DataStoreRequestType"]): number;
+	GetRequestBudgetForRequestType(this: MockService, kind: Enum.DataStoreRequestType): number;
 	Clear(this: MockService): void;
 }
 
@@ -161,4 +150,3 @@ export declare function UseReal(): void;
 export declare function UseClock(reads?: () => number): void;
 export declare function Sweep(): void;
 export declare function CloseAll(): void;
-
